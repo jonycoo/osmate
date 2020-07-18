@@ -22,18 +22,21 @@ class ElemEditor:
     def get_conversation(self):
         return ConversationHandler(
             entry_points=[CallbackQueryHandler(self.start),
-                          MessageHandler(Filters.document, self.gpx_up)],
+                          MessageHandler(Filters.document, self.gpx_up),
+                          MessageHandler(Filters.location, self.location)],
 
             states={
-                 CHOOSING: [MessageHandler(Filters.regex('tag'), self.tag),
-                            ],
+                CHOOSING: [MessageHandler(Filters.regex('tag'), self.tag)],
 
 
-                 TAG_CHOICE: [MessageHandler(Filters.text, self.tag)],
+                TAG_CHOICE: [MessageHandler(Filters.text, self.tag)],
 
-                 TYPING_REPLY: [MessageHandler(Filters.text, self.value),
-                                MessageHandler(Filters.location, self.location)
-                                ],
+                TYPING_REPLY: [MessageHandler(Filters.text, self.value),
+                               MessageHandler(Filters.location, self.location)
+                               ],
+                LOCATION: [CallbackQueryHandler(self.loc_action)],
+
+
                 GPX_NAME: [MessageHandler(Filters.text, self.gpx_name)],
 
                 GPX_DESCRIPTION: [CommandHandler('skip', self.gpx_desc),
@@ -41,9 +44,8 @@ class ElemEditor:
                 GPX_TAG: [CommandHandler('skip', self.gpx_up_content),
                           MessageHandler(Filters.text, self.gpx_desc)],
 
-                GPX_SAVE:[CommandHandler('save', self.gpx_up_content),
-                          CallbackQueryHandler(self.gpx_toggles, 0)
-                          ]
+                GPX_SAVE: [CommandHandler('save', self.gpx_up_content),
+                           CallbackQueryHandler(self.gpx_toggles, 0)]
              },
 
             fallbacks=[MessageHandler(Filters.regex('cancel'), self.cancel),
@@ -123,8 +125,19 @@ class ElemEditor:
 
     def location(self, update, context):
         loc = update.message.location
-        update.message.reply_text('send Note text')
-        return TYPING_REPLY
+        markup = InlineKeyboardMarkup([[InlineKeyboardButton('Cr. Note', callback_data='note'),
+                                        InlineKeyboardButton('Cr. POI', callback_data='poi')],
+                                       [InlineKeyboardButton('search Issues ', callback_data='issues')]])
+        update.message.reply_text('What do you want to do?', reply_markup=markup)
+        return LOCATION
+
+    def loc_action(self, update, context):
+        if update.callback_query.data == 'note':
+            self.note(update, context)
+        elif update.callback_query.data == 'poi':
+            self.poi(update, context)
+        elif update.callback_query.data == 'issues':
+            return '''handled by bot.py'''
 
     def tag(self, update, context):
         print('hay here is conversation Tag')
@@ -139,7 +152,10 @@ class ElemEditor:
         update.callback_query.edit_message_text()
         return CHOOSING
 
-    def note(self):
+    def note(self, update, context):
+        pass
+
+    def poi(self, update, context):
         pass
 
     def cancel(self, update, context):
