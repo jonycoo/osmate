@@ -27,7 +27,13 @@ class Element:
         return json.dumps(self.__dict__, default=lambda o: o.__dict__)
 
     def __str__(self):
-        return str(self.id)
+        if self.created:
+            rt = '{} {}\ncreated: {}\nversion: {}\nvisible: {}\nchangeset: {}\n{} {}\n ---- \n'\
+                .format(self.e_type, self._id, self.created, self.version,
+                        self.visible, self.changeset, self.user, self.uid)
+        else:
+            rt = 'type: {}\n ---- \n'.format(self.e_type)
+        return rt.join(map('\n'.join, self.tags))
 
     @property
     def id(self):
@@ -56,6 +62,10 @@ class Node(Element):
         self.lon = lon
         self.e_type = 'node'
 
+    def __str__(self):
+        rt = super().__str__()
+        return rt + '\nloc: {}, {}'.format(self.lat, self.lon)
+
 
 class Way(Element):
     def __init__(self, eid: int, nodes: list, version: int, changeset: int,
@@ -64,6 +74,11 @@ class Way(Element):
         self.nodes = nodes
         self.e_type = 'way'
 
+    def __str__(self):
+        rt = super().__str__()
+        return rt + '\nnode_count: {}'.format(len(self.nodes))
+
+
 
 class Relation(Element):
     def __init__(self, eid: int, members: list, version: int, changeset: int,
@@ -71,6 +86,10 @@ class Relation(Element):
         super().__init__(eid, version, changeset, user, uid, created, visible, tags)
         self.members = members
         self.e_type = 'relation'
+
+    def __str__(self):
+        rt = super().__str__()
+        return rt + '\nmember_count: {}'.format(len(self.members))
 
 
 class Comment:
