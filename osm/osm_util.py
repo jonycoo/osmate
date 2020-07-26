@@ -33,7 +33,7 @@ class Element:
                         self.visible, self.changeset, self.user, self.uid)
         else:
             rt = 'type: {}\n ---- \n'.format(self.e_type)
-        return rt.join(map('\n'.join, self.tags))
+        return rt + rt.join(map('\n'.join, self.tags))
 
     @property
     def id(self):
@@ -64,7 +64,7 @@ class Node(Element):
 
     def __str__(self):
         rt = super().__str__()
-        return rt + '\nloc: {}, {}'.format(self.lat, self.lon)
+        return rt + 'loc: {}, {}'.format(self.lat, self.lon)
 
 
 class Way(Element):
