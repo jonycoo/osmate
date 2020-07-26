@@ -165,6 +165,10 @@ class ElemEditor:
         update.callback_query.edit_message_text()
         context.bot.send_message(update.effective_chat.id, 'please send the Tag-name')
 
+    def poi_content(self, update, context):
+        poi: osm.osm_util.Element = context.user_data['poi']
+
+
     def cancel(self, update, context):
         update.callback_query.answer('exit edit conversation')
         return ConversationHandler.END
