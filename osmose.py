@@ -14,7 +14,7 @@ from ee_osmose import NoneFoundError
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(lineno)d - %(message)s', level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-URL = 'http://osmose.openstreetmap.fr/en/api/0.3beta'
+URL = 'http://osmose.openstreetmap.fr/en/api/0.3'
 lang = 'en'
 
 
