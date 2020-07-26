@@ -156,7 +156,14 @@ class ElemEditor:
         pass
 
     def poi(self, update, context):
-        pass
+        try:
+            context.user_data['poi']
+        except KeyError:
+            lat = update.message.location.latitude
+            lon = update.message.location.longitude
+            context.user_data['poi'] = osm.osm_util.Node(None, lat, lon, None, None, None, None, None, None, None)
+        update.callback_query.edit_message_text()
+        context.bot.send_message(update.effective_chat.id, 'please send the Tag-name')
 
     def cancel(self, update, context):
         update.callback_query.answer('exit edit conversation')
