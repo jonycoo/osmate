@@ -169,7 +169,6 @@ def main():
     dp.add_handler(CommandHandler("help", help), 1)
     dp.add_handler(CommandHandler('user', user_issue), 1)
     dp.add_handler(CallbackQueryHandler(button), 1)
-    dp.add_handler(MessageHandler(Filters.location, loc_issue), 1)
     dp.add_handler(CommandHandler("loc", loc_issue), 1)
     dp.add_handler(editor.get_conversation(), 0)
 

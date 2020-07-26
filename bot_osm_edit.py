@@ -124,7 +124,7 @@ class ElemEditor:
         logger.error('invalid command')
 
     def location(self, update, context):
-        loc = update.message.location
+        context.user_data['loc'] = update.message.location.latitude, update.message.location.longitude
         markup = InlineKeyboardMarkup([[InlineKeyboardButton('Cr. Note', callback_data='note'),
                                         InlineKeyboardButton('Cr. POI', callback_data='poi')],
                                        [InlineKeyboardButton('search Issues ', callback_data='issues')]])
@@ -132,12 +132,16 @@ class ElemEditor:
         return LOCATION
 
     def loc_action(self, update, context):
+        logger.debug('arrived in loc_action')
         if update.callback_query.data == 'note':
             self.note(update, context)
+            update.callback_query.answer()
         elif update.callback_query.data == 'poi':
             self.poi(update, context)
+            update.callback_query.answer()
         elif update.callback_query.data == 'issues':
             return '''handled by bot.py'''
+
 
     def tag(self, update, context):
         print('hay here is conversation Tag')
@@ -156,17 +160,16 @@ class ElemEditor:
         pass
 
     def poi(self, update, context):
+        logger.info('arrived in poi')
         try:
             context.user_data['poi']
         except KeyError:
-            lat = update.message.location.latitude
-            lon = update.message.location.longitude
+            lat, lon = context.user_data['loc']
+            del context.user_data['loc']
             context.user_data['poi'] = osm.osm_util.Node(None, lat, lon, None, None, None, None, None, None, None)
-        update.callback_query.edit_message_text()
+        update.callback_query.edit_message_text(str(context.user_data['poi']))
         context.bot.send_message(update.effective_chat.id, 'please send the Tag-name')
 
-    def poi_content(self, update, context):
-        poi: osm.osm_util.Element = context.user_data['poi']
 
 
     def cancel(self, update, context):
