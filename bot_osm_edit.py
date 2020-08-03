@@ -11,7 +11,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 logger = logging.getLogger(__name__)
 
-CHOOSING, TAG_CHOICE, VALUE_REPLY, TYPING_REPLY, LOCATION, TEXT, GPX_DESCRIPTION, GPX_NAME, GPX_TAG, GPX_SAVE, SAVE = range(11)
+CHOOSING, TAG_CHOICE, VALUE_REPLY, LOCATION, TEXT, GPX_DESCRIPTION, GPX_NAME, GPX_TAG, GPX_SAVE, SAVE = range(10)
 
 
 class ElemEditor:
@@ -29,11 +29,11 @@ class ElemEditor:
                 CHOOSING: [MessageHandler(Filters.regex('tag'), self.tag)],
 
 
-                TAG_CHOICE: [MessageHandler(Filters.text, self.tag)],
+                TAG_CHOICE: [MessageHandler(Filters.text, self.tag),
+                             CommandHandler('cancel', self.cancel)],
 
-                TYPING_REPLY: [MessageHandler(Filters.text, self.value),
-                               MessageHandler(Filters.location, self.location)
-                               ],
+                VALUE_REPLY: [MessageHandler(Filters.text, self.value)],
+
                 LOCATION: [CallbackQueryHandler(self.loc_action)],
 
 
@@ -54,16 +54,7 @@ class ElemEditor:
 
     def start(self, update: Update, context: CallbackContext):
         if update.callback_query.data == 'edit':
-            update.callback_query.answer('enter edit conversation')
-            try:
-                thing = context.user_data['edit']
-                # send message containing all tags and values of object
-                return TAG_CHOICE
-            except KeyError:
-                context.bot.send_message(update.effective_chat.id, 'select action')  # for now only Note create
-                context.user_data['subject'] = osm.osm_util.Note
-                context.bot.send_message(update.effective_chat.id, 'please send location.')
-                return TYPING_REPLY
+            update.callback_query.answer('enter edit conversation\n no action')
         return  # handled by bot
 
     def gpx_up(self, update: Update, context):
@@ -98,7 +89,6 @@ class ElemEditor:
             update.callback_query.edit_message_text(str(gpx), reply_markup=markup)
         except AttributeError:
             update.message.reply_text(str(gpx), reply_markup=markup)
-
         return GPX_SAVE
 
     def gpx_toggles(self, update, context):
@@ -139,22 +129,21 @@ class ElemEditor:
         elif update.callback_query.data == 'poi':
             self.poi(update, context)
             update.callback_query.answer()
+            return TAG_CHOICE
         elif update.callback_query.data == 'issues':
             return '''handled by bot.py'''
 
-
     def tag(self, update, context):
-        print('hay here is conversation Tag')
-        return CHOOSING
+        context.user_data['tag'] = update.message.text
+        update.message.reply_text('send the tag value')
+        return VALUE_REPLY
 
-    def value(self):
-        pass
-
-    def edit_info(self, update: Update, context: CallbackContext):
-        value = update.message.text
-        context.user_data['edit']
-        update.callback_query.edit_message_text()
-        return CHOOSING
+    def value(self, update: Update, context):
+        context.user_data['poi'].tags[str(context.user_data['tag'])] = update.message.text
+        del context.user_data['tag']
+        update.message.reply_text(str(context.user_data['poi']))
+        context.bot.send_message(update.effective_chat.id, 'please send the Tag-Name')
+        return TAG_CHOICE
 
     def note(self, update, context):
         pass
@@ -168,7 +157,8 @@ class ElemEditor:
             del context.user_data['loc']
             context.user_data['poi'] = osm.osm_util.Node(None, lat, lon, None, None, None, None, None, None, None)
         update.callback_query.edit_message_text(str(context.user_data['poi']))
-        context.bot.send_message(update.effective_chat.id, 'please send the Tag-name')
+        context.bot.send_message(update.effective_chat.id, 'please send the Tag-Name')
+        return TAG_CHOICE
 
 
 
