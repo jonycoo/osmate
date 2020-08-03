@@ -33,7 +33,11 @@ class Element:
                         self.visible, self.changeset, self.user, self.uid)
         else:
             rt = 'type: {}\n ---- \n'.format(self.e_type)
-        return rt + rt.join(map('\n'.join, self.tags))
+
+        str_tag = ''
+        for name, value in self.tags.items():
+            str_tag += '{}: {}\n'.format(name, value)
+        return rt + str_tag
 
     @property
     def id(self):
