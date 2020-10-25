@@ -20,17 +20,20 @@ class OsmApi:
         """
         raise NotImplementedError
 
-    def get_permissions(self) -> set:
+    def get_permissions(self, auth) -> set:
         """
         current permissions
+        Authorisation required
         """
         raise NotImplementedError
 
-    ''' changeset '''
+    ############################################### CHANGESET #######################################################
 
-    def create_changeset(self, tags: dict) -> int:
+    def create_changeset(self, tags: dict, auth) -> int:
         """
+        Authorisation required
         :param tags: Dictionary containing additional tags
+        :param auth: either OAuth1 object or tuple (username, password)
         :returns: changeset ID
         :raises ParseError:
         """
@@ -48,16 +51,21 @@ class OsmApi:
         """
         raise NotImplementedError
 
-    def edit_changeset(self, changeset: ChangeSet):
+    def edit_changeset(self, changeset: ChangeSet, auth):
         """
+        Authorisation required
 
+        :param auth: either OAuth1 object or tuple (username, password)
         """
         raise NotImplementedError
 
-    def close_changeset(self, cid: int):
+    def close_changeset(self, cid: int, auth):
         """
         closes a changeset
+        Authorisation required
 
+        :param cid: changeset ID
+        :param auth: either OAuth1 object or tuple (username, password)
         :raises NoneFoundError: does not exist
         :raises ConflictError: deleted
         """
@@ -80,47 +88,58 @@ class OsmApi:
 
     def diff_upload(self, cid: int) -> list:
         """
+        Authorisation required
         POST /api/0.6/changeset/#id/upload
+
+        :param auth: either OAuth1 object or tuple (username, password)
         """
         raise NotImplementedError
 
-    def comm_changeset(self, cid: int, text: str) -> str:
+    def comm_changeset(self, cid: int, text: str, auth) -> str:
         """
+        Authorisation required
         Add a comment to a changeset. The changeset must be closed.
 
         :param cid: changeset ID
         :param text: text in new comment
+        :param auth: either OAuth1 object or tuple (username, password)
         :raises ValueError: no textfield present
         :raises ConflictError: deleted
         """
         raise NotImplementedError
 
-    def sub_changeset(self, cid: int) -> ChangeSet:
+    def sub_changeset(self, cid: int, auth) -> ChangeSet:
         """
         Subscribes the current authenticated user to changeset discussion
+        Authorisation required
 
         :param cid: changeset ID
+        :param auth: either OAuth1 object or tuple (username, password)
         :raises ConflictError: already subscribed
         """
         raise NotImplementedError
 
-    def unsub_changeset(self, cid: int) -> ChangeSet:
+    def unsub_changeset(self, cid: int, auth) -> ChangeSet:
         """
         Unsubscribe the current authenticated user from changeset discussion
+        Authorisation required
 
         :param cid: changeset ID
+        :param auth: either OAuth1 object or tuple (username, password)
         :raises NoneFoundError: is not subscribed
         """
         raise NotImplementedError
 
-    ''' Element '''
+    ############################################## ELEMENT #########################################################
 
-    def create_element(self, elem: Element, cid: int) -> int:
+    def create_element(self, elem: Element, cid: int, auth) -> int:
         """
         creates new element of specified type
+        Authorisation required
 
         :param elem: element to get created
         :param cid: open changeset ID
+        :param auth: either OAuth1 object or tuple (username, password)
         :returns: Element ID
         :raises NoneFoundError:
             When there are errors parsing the XML -> ParseError
@@ -142,11 +161,13 @@ class OsmApi:
         """
         raise NotImplementedError
 
-    def edit_element(self, elem: Element, cid: int) -> int:
+    def edit_element(self, elem: Element, cid: int, auth) -> int:
         """
+        Authorisation required
 
         :param elem: changed element to get uploaded
         :param cid: open changeset id
+        :param auth: either OAuth1 object or tuple (username, password)
         :returns: New version Number
         :raises ValueError:
             When there are errors parsing the XML
@@ -162,10 +183,13 @@ class OsmApi:
         """
         raise NotImplementedError
 
-    def delete_element(self, elem: Element, cid: int) -> int:
+    def delete_element(self, elem: Element, cid: int, auth) -> int:
         """
+        Authorisation required
+
         :param elem: changed element to get deleted
         :param cid: open changeset id
+        :param auth: either OAuth1 object or tuple (username, password)
         :returns: new version number
         :raises ValueError:
             When there are errors parsing the XML
@@ -237,9 +261,9 @@ class OsmApi:
 
     # reduction purposefully left out (only for moderators)
 
-    ''' GPX '''
+    ################################################## GPX ########################################################
 
-    def get_bbox_gpx(self, bbox: tuple, page: int) -> dict:
+    def get_gpx_bbox(self, bbox: tuple, page: int) -> dict:
         """
         returns 5000GPS trackpoints max, increase page for any additional 5000
 
@@ -249,15 +273,18 @@ class OsmApi:
         """
         raise NotImplementedError
 
-    def upload_gpx(self, trace: str, name: str, description: str, tags: set,
+    def upload_gpx(self, trace: str, name: str, description: str, tags: set, auth,
                    public: bool = True, visibility: str = 'trackable') -> int:
         """
         uploads gpx trace
+        Authorisation required
+
 
         :param trace: gpx trace file string
         :param description: gpx description
         :param name: file name on osm
         :param tags: additional tags mappingtour, etc
+        :param auth: either OAuth1 object or tuple (username, password)
         :param public: True for public tracks else False
         :param visibility: one of [private, public, trackable, identifiable]
             more https://wiki.openstreetmap.org/wiki/Visibility_of_GPS_traces
@@ -265,15 +292,17 @@ class OsmApi:
         """
         raise NotImplementedError
 
-    def update_gpx(self, tid: int, trace: str, description: str, tags: set,
+    def update_gpx(self, tid: int, trace: str, description: str, tags: set, auth,
                    public: bool = True, visibility: str = 'trackable'):
         """
         updates gpx trace
+        Authorisation required
 
         :param tid: uploaded trace id
         :param trace: gpx trace as string
         :param description: gpx description
         :param tags: additional tags mappingtour, etc
+        :param auth: either OAuth1 object or tuple (username, password)
         :param public: True for public tracks else False
         :param visibility: one of [private, public, trackable, identifiable]
             more https://wiki.openstreetmap.org/wiki/Visibility_of_GPS_traces
@@ -281,9 +310,12 @@ class OsmApi:
         """
         raise NotImplementedError
 
-    def delete_gpx(self, gpx_id: int):
+    def delete_gpx(self, gpx_id: int, auth):
         """
+        Authorisation required
+
         :param gpx_id: id identifying the gpx file on the server
+        :param auth: either OAuth1 object or tuple (username, password)
         """
         raise NotImplementedError
 
@@ -304,13 +336,16 @@ class OsmApi:
         """
         raise NotImplementedError
 
-    def get_own_gpx(self) -> list:
+    def get_own_gpx(self, auth) -> list:
         """
+        Authorisation required
+
+        :param auth: either OAuth1 object or tuple (username, password)
         :returns: list of dictionary representing the metadata
         """
         raise NotImplementedError
 
-    ''' user '''
+    ################################################# USER ######################################################
 
     def get_user(self, uid: int) -> dict:
         """
@@ -326,49 +361,72 @@ class OsmApi:
         """
         raise NotImplementedError
 
-    def get_own_preferences(self) -> dict:
+    def get_current_user(self, auth):
         """
+        Authorisation required
+
+        :param auth: either OAuth1 object or tuple (username, password)
+        :returns: dictionary with user detail
+        """
+        raise NotImplementedError
+
+    def get_own_preferences(self, auth) -> dict:
+        """
+        Authorisation required
+
         GET /api/0.6/user/preferences
 
+        :param auth: either OAuth1 object or tuple (username, password)
         :returns: dictionary with preferences
         """
         raise NotImplementedError
 
-    def update_own_preferences(self, pref: dict):
+    def update_own_preferences(self, pref: dict, auth):
         """
+        Authorisation required
+
         PUT /api/0.6/user/preferences
 
+        :param auth: either OAuth1 object or tuple (username, password)
         :param pref: dictionary with preferences
         """
         raise NotImplementedError
 
-    def get_own_preference(self, key: str) -> str:
+    def get_own_preference(self, key: str, auth) -> str:
         """
+        Authorisation required
+
         GET /api/0.6/user/preferences/<your_key>
 
+        :param auth: either OAuth1 object or tuple (username, password)
         :param key: key of preference
         :returns: value
         """
         raise NotImplementedError
 
-    def set_own_preference(self, key: str, value: str):
+    def set_own_preference(self, key: str, value: str, auth):
         """
+        Authorisation required
+
         PUT /api/0.6/user/preferences/<your_key>
 
-        :param key:
-        :param value:
+        :param key: key of preference
+        :param value: new value
+        :param auth: either OAuth1 object or tuple (username, password)
         """
         raise NotImplementedError
 
-    def delete_own_preference(self, key: str):
+    def delete_own_preference(self, key: str, auth):
         """
+        Authorisation required
+
         DELETE /api/0.6/user/preferences/[your_key]
 
-        :param key:
-        :returns:
+        :param key: key of preference
+        :param auth: either OAuth1 object or tuple (username, password)
         """
 
-    ''' notes '''
+    ################################################# NOTE ######################################################
 
     def get_notes_bbox(self, bbox: tuple, limit: int = 100, closed: int = 7) -> list:
         """
@@ -389,20 +447,26 @@ class OsmApi:
         """
         raise NotImplementedError
 
-    def create_note(self, text: str, lat: float, lon: float) -> Note:
+    def create_note(self, text: str, lat: float, lon: float, auth) -> Note:
         """
+        Authorisation optional
+
         :param text: Note Text
         :param lat: latitude
         :param lon: longitude
+        :param auth: either OAuth1 object or tuple (username, password)
         :returns: Note ID
         :raises ValueError: No text field
         """
         raise NotImplementedError
 
-    def comment_note(self, nid: int, text: str) -> Note:
+    def comment_note(self, nid: int, text: str, auth) -> Note:
         """
+        Authorisation required
+
         :param nid: Note ID
         :param text: Text
+        :param auth: either OAuth1 object or tuple (username, password)
         :returns: the Note itself
         :raises ValueError: HTTP 400 BAD REQUEST No Textfield
         :raises NoneFoundError: HTTP 404 NOT FOUND
@@ -410,21 +474,27 @@ class OsmApi:
         """
         raise NotImplementedError
 
-    def close_note(self, nid: int, text: str) -> Note:
+    def close_note(self, nid: int, text: str, auth) -> Note:
         """
+        Authorisation required
+
         :param nid: Note ID
         :param text: Closing comment
-        :returns:
+        :param auth: either OAuth1 object or tuple (username, password)
+        :returns: the Note itself
         :raises NoneFoundError: HTTP 404 NOT FOUND
         :raises MethodError: HTTP 405 METHOD NOT ALLOWED
         :raises ConflictError: HTTP 409 CONFLICT closed Note
         """
         raise NotImplementedError
 
-    def reopen_note(self, nid: int, text: str):
+    def reopen_note(self, nid: int, text: str, auth):
         """
+        Authorisation required
+
         :param nid: Note ID
         :param text: Text
+        :param auth: either OAuth1 object or tuple (username, password)
         :returns: the Note itself
         :raises NoneFoundError: HTTP 404 NOT FOUND
         :raises MethodError: HTTP 405 METHOD NOT ALLOWED
@@ -437,6 +507,7 @@ class OsmApi:
                     start: datetime = None, end: datetime = None,
                     sort: str = 'updated_at', order: str = 'newest') -> list:
         """
+        Authorisation required
         GET /api/0.6/notes/search?q=<SearchTerm>&limit=&closed=&username=&user=&from=&to=&sort=&order=
 
         :param text: <free text>

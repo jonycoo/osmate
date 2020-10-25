@@ -1,59 +1,41 @@
 import os
 import logging
-
-# Using OAuth1Session
-from requests_oauthlib import OAuth1Session
+from requests_oauthlib import OAuth1
+from rauth import OAuth1Service
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(lineno)d - %(message)s', level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 try:
-    CLIENT_KEY = os.environ['OSM_KEY']
-    CLIENT_SECRET = os.environ['OSM_SECRET']
+    CONSUMER_KEY = os.environ['OSM_CONSUMER_KEY']
+    CONSUMER_SECRET = os.environ['OSM_CONSUMER_SECRET']
 except KeyError:
-    logger.exception('please set up environment variables OSM_KEY and OSM_SECRET')
-    raise AttributeError
+    exit()
 
 
 class Authorisation:
 
-    def __init__(self, req_token_url=None, base_auth_url=None, acc_token_url=None):
-        self.oauth = OAuth1Session(CLIENT_KEY, client_secret=CLIENT_SECRET)
-        self.owner_key = ''
-        self.owner_secret = ''
-        self.verifier = ''
-        self.request_token_url = req_token_url or 'https://master.apis.dev.openstreetmap.org/oauth/request_token'
-        self.base_authorization_url = base_auth_url or 'https://master.apis.dev.openstreetmap.org/oauth/authorize'
-        self.access_token_url = acc_token_url or 'https://master.apis.dev.openstreetmap.org/oauth/access_token'
+    def __init__(self):
+        self.osm_auth = OAuth1Service(
+            name='osm',
+            consumer_key=CONSUMER_KEY,
+            consumer_secret=CONSUMER_SECRET,
+            request_token_url='https://master.apis.dev.openstreetmap.org/oauth/request_token',
+            access_token_url='https://master.apis.dev.openstreetmap.org/oauth/access_token',
+            authorize_url='https://master.apis.dev.openstreetmap.org/oauth/authorize',
+            base_url='https://master.apis.dev.openstreetmap.org')
 
-
-    # Using OAuth1Session
     def request_token(self):
+        self.request_token, self.request_token_secret = self.osm_auth.get_request_token()
+        authorize_url = self.osm_auth.get_authorize_url(self.request_token)
+        return authorize_url
 
-        fetch_response = self.oauth.fetch_request_token(self.request_token_url)
-        logger.debug(fetch_response)
+    def authorize(self):
+        acc_token, acc_token_secret = self.osm_auth.get_access_token(self.request_token, self.request_token_secret)
+        auth_token = OAuth1(self.osm_auth.consumer_key, self.osm_auth.consumer_secret, acc_token, acc_token_secret)
+        return auth_token
 
-        self.owner_key = fetch_response.get('oauth_token')
-        self.owner_secret = fetch_response.get('oauth_token_secret')
-        return self.owner_key, self.owner_secret
-
-    def prepare_auth_url(self):
-        authorization_url = self.oauth.authorization_url(self.base_authorization_url)
-        print('Please go here and authorize,', authorization_url)  # TODO send this message to user
-
-    # Using OAuth1Session
-    def authorize(self, response):
-        oauth_response = self.oauth.parse_authorization_response(response)
-        logger.debug(oauth_response)
-        self.verifier = oauth_response.get('oauth_verifier')
-        return self.verifier
-
-    # Using OAuth1Session
-    def access_token(self):
-        self.oauth = OAuth1Session(CLIENT_KEY,
-                                   client_secret=CLIENT_SECRET,
-                                   resource_owner_key=self.owner_key,
-                                   resource_owner_secret=self.owner_secret,
-                                   verifier=self.verifier)
-        oauth_tokens = self.oauth.fetch_access_token(self.access_token_url)
+    @staticmethod
+    def cr_auth_token(auth_token, auth_secret):
+        return OAuth1(CONSUMER_KEY, CONSUMER_SECRET, auth_token, auth_secret)
 

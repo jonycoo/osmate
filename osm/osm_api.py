@@ -13,23 +13,16 @@ from ee_osmose import *
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(lineno)d - %(message)s', level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-try:
-    NAME = os.environ['OSM_USERNAME']
-    PASS = os.environ['OSM_PASSWORD']
-except KeyError:
-    logger.exception('no "OSM_USERNAME" or "OSM_PASSWORD" in environment variables.', 'Exit program')
-    exit()
-
 
 class OsmApi(a_osm_api.OsmApi):
     base_url = 'https://master.apis.dev.openstreetmap.org/api/0.6'
 
-    def get_permissions(self) -> set:
+    def get_permissions(self, auth) -> set:
         """
         current permissions
         GET /api/0.6/permissions
         """
-        data = requests.get(self.base_url + '/permissions', auth=(NAME, PASS))
+        data = requests.get(self.base_url + '/permissions', auth=auth)
         if data.ok:
             tree = ElemTree.fromstring(data.text)
             permissions = set()
@@ -38,9 +31,9 @@ class OsmApi(a_osm_api.OsmApi):
             return permissions
         raise Exception(data.text)
 
-    ''' changeset '''
+    ############################################### CHANGESET #######################################################
 
-    def create_changeset(self, tags: dict) -> int:
+    def create_changeset(self, tags: dict, auth) -> int:
         """
         PUT /api/0.6/changeset/create
         :returns: changeset ID
@@ -51,7 +44,7 @@ class OsmApi(a_osm_api.OsmApi):
         xml = ElemTree.tostring(root)
 
         logger.debug(xml)
-        data = requests.put(self.base_url + '/changeset/create', data=xml, auth=(NAME, PASS))
+        data = requests.put(self.base_url + '/changeset/create', data=xml, auth=auth)
         if data.ok:
             return int(data.text)
         elif data.status_code == HTTPStatus.BAD_REQUEST:
@@ -69,7 +62,7 @@ class OsmApi(a_osm_api.OsmApi):
         url = self.base_url + '/changeset/{}'.format(cid)
         if discussion:
             url += '?include_discussion=True'
-        data = requests.get(url, auth=(NAME, PASS))
+        data = requests.get(url)
         if data.ok:
             logger.debug(data.text)
             return self.__changeset_parser(data.text)
@@ -77,12 +70,12 @@ class OsmApi(a_osm_api.OsmApi):
             raise NoneFoundError(data.text)
         raise Exception(data.text)
 
-    def close_changeset(self, cid: int):
+    def close_changeset(self, cid: int, auth):
         """
         closes a changeset
         PUT /api/0.6/changeset/#id/close
         """
-        data = requests.get(self.base_url + '/changeset/{}/close'.format(cid), auth=(NAME, PASS))
+        data = requests.get(self.base_url + '/changeset/{}/close'.format(cid), auth=auth)
         if data.ok:
             return None
         elif data.status_code == HTTPStatus.NOT_FOUND:
@@ -95,7 +88,7 @@ class OsmApi(a_osm_api.OsmApi):
         """
         GET /api/0.6/changeset/#id/download
         """
-        data = requests.get(self.base_url + '/changeset/close', auth=(NAME, PASS))
+        data = requests.get(self.base_url + '/changeset/close')
         if data.ok:
             return data.text
         elif data.status_code == HTTPStatus.NOT_FOUND:
@@ -122,13 +115,13 @@ class OsmApi(a_osm_api.OsmApi):
                            True, bbox, cs_prop['open'] or datetime.fromisoformat(cs_prop['closed_at']), tags, comments)
         return ch_set
 
-    def comm_changeset(self, cid: int, text: str) -> ChangeSet:
+    def comm_changeset(self, cid: int, text: str, auth) -> ChangeSet:
         """
         Add a comment to a changeset. The changeset must be closed.
         POST /api/0.6/changeset/#id/comment
         """
         data = requests.post(self.base_url + '/changeset/{}/comment'.format(str(cid)),
-                             data={'text': text}, auth=(NAME, PASS))
+                             data={'text': text}, auth=auth)
         logger.debug(data.text)
         if data.ok:
             return self.__changeset_parser(data.text)
@@ -137,33 +130,33 @@ class OsmApi(a_osm_api.OsmApi):
         elif data.status_code == HTTPStatus.CONFLICT:
             raise ConflictError(data.text)
 
-    def sub_changeset(self, cid: int) -> ChangeSet:
+    def sub_changeset(self, cid: int, auth) -> ChangeSet:
         """
         Subscribes the current authenticated user to changeset discussion
         POST /api/0.6/changeset/#id/subscribe
         """
-        data = requests.post(self.base_url + '/changeset/{}/subscribe'.format(cid), auth=(NAME, PASS))
+        data = requests.post(self.base_url + '/changeset/{}/subscribe'.format(cid), auth=auth)
         if data.ok:
             return self.__changeset_parser(data.text)
         elif data.status_code == HTTPStatus.CONFLICT:
             raise ConflictError(data.text)
         raise Exception(data.text)
 
-    def unsub_changeset(self, cid: int) -> ChangeSet:
+    def unsub_changeset(self, cid: int, auth) -> ChangeSet:
         """
         Unsubscribe the current authenticated user from changeset discussion
         POST /api/0.6/changeset/#id/subscribe
         """
-        data = requests.post(self.base_url + '/changeset/{}/unsubscribe'.format(cid), auth=(NAME, PASS))
+        data = requests.post(self.base_url + '/changeset/{}/unsubscribe'.format(cid), auth=auth)
         if data.ok:
             return self.__changeset_parser(data.text)
         elif data.status_code == HTTPStatus.NOT_FOUND:
             raise NoneFoundError(data.text)
         raise Exception(data.text)
 
-    ''' Element '''
+    ############################################## ELEMENT #########################################################
 
-    def create_element(self, elem: Element, cid: int) -> int:
+    def create_element(self, elem: Element, cid: int, auth) -> int:
         """
         creates new element of specified type
         PUT /api/0.6/[node|way|relation]/create
@@ -171,7 +164,7 @@ class OsmApi(a_osm_api.OsmApi):
         """
         elem.changeset = cid
         xml = self.__serial_elem(elem, True)
-        data = requests.get(self.base_url + '/{}/create'.format(elem.e_type), data=xml, auth=(NAME, PASS))
+        data = requests.get(self.base_url + '/{}/create'.format(elem.e_type), data=xml, auth=auth)
         if data.ok:
             return int(data.text)
         elif data.status_code == HTTPStatus.BAD_REQUEST:
@@ -185,7 +178,7 @@ class OsmApi(a_osm_api.OsmApi):
         """
         GET /api/0.6/[node|way|relation]/#id
         """
-        data = requests.get(self.base_url + '/{}/{}'.format(etype, eid), auth=(NAME, PASS))
+        data = requests.get(self.base_url + '/{}/{}'.format(etype, eid))
         if data.ok:
             tree = ElemTree.fromstring(data.text)
             logger.debug(data.text)
@@ -253,14 +246,14 @@ class OsmApi(a_osm_api.OsmApi):
 
         return ElemTree.tostring(root).decode()
 
-    def edit_element(self, elem: Element, cid: int) -> int:
+    def edit_element(self, elem: Element, cid: int, auth) -> int:
         """
         PUT /api/0.6/[node|way|relation]/#id
         :returns: New version Number
         """
         elem.changeset = cid
         data = requests.put(self.base_url + '/{}/{}'.format(elem.e_type, elem.id),
-                            data=self.__serial_elem(elem), auth=(NAME, PASS))
+                            data=self.__serial_elem(elem), auth=auth)
         if data.ok:
             return int(data.text)
         elif data.status_code == HTTPStatus.BAD_REQUEST:
@@ -273,7 +266,7 @@ class OsmApi(a_osm_api.OsmApi):
             raise ParseError(data.text)
         raise Exception(data.text)
 
-    def delete_element(self, elem: Element, cid: int) -> int:
+    def delete_element(self, elem: Element, cid: int, auth) -> int:
         """
         DELETE /api/0.6/[node|way|relation]/#id
 
@@ -281,7 +274,7 @@ class OsmApi(a_osm_api.OsmApi):
         """
         elem.changeset = cid
         data = requests.delete(self.base_url + '/{}/{}'.format(elem.e_type, elem.id),
-                               data=self.__serial_elem(elem), auth=(NAME, PASS))
+                               data=self.__serial_elem(elem), auth=auth)
         if data.ok:
             return int(data.text)
         elif data.status_code == HTTPStatus.BAD_REQUEST:
@@ -300,8 +293,7 @@ class OsmApi(a_osm_api.OsmApi):
         """
         GET /api/0.6/[nodes|ways|relations]?#parameters
         """
-        data = requests.get(self.base_url + '/{}s?{}s={}'.format(etype, etype, ','.join(map(str, lst_eid))),
-                            auth=(NAME, PASS))
+        data = requests.get(self.base_url + '/{}s?{}s={}'.format(etype, etype, ','.join(map(str, lst_eid))))
         if data.ok:
             tree = ElemTree.fromstring(data.text)
             logger.debug(data.text)
@@ -322,7 +314,7 @@ class OsmApi(a_osm_api.OsmApi):
         """
         GET /api/0.6/[node|way|relation]/#id/relations
         """
-        data = requests.get(self.base_url + '/{}/{}/relations'.format(etype, eid), auth=(NAME, PASS))
+        data = requests.get(self.base_url + '/{}/{}/relations'.format(etype, eid))
         if data.ok:
             tree = ElemTree.fromstring(data.text)
             logger.debug(data.text)
@@ -338,7 +330,7 @@ class OsmApi(a_osm_api.OsmApi):
         """
         GET /api/0.6/node/#id/ways
         """
-        data = requests.get(self.base_url + '/node/{}/ways'.format(eid), auth=(NAME, PASS))
+        data = requests.get(self.base_url + '/node/{}/ways'.format(eid))
         if data.ok:
             tree = ElemTree.fromstring(data.text)
             logger.debug(data.text)
@@ -356,7 +348,7 @@ class OsmApi(a_osm_api.OsmApi):
         GET /api/0.6/map?bbox=left,bottom,right,top
 
         """
-        data = requests.get(self.base_url + '/map?bbox={}'.format(','.join(map(str, bbox))), auth=(NAME, PASS))
+        data = requests.get(self.base_url + '/map?bbox={}'.format(','.join(map(str, bbox))))
         if data.ok:
             tree = ElemTree.fromstring(data.text)
             logger.debug(data.text)
@@ -368,19 +360,19 @@ class OsmApi(a_osm_api.OsmApi):
             return elems
         raise Exception(data.text)
 
-    ''' GPX '''
+    ################################################## GPX ########################################################
 
-    def get_bbox_gpx(self, bbox: tuple, page: int = 0) -> list:
+    def get_gpx_bbox(self, bbox: tuple, page: int = 0) -> list:
         """
         returns 5000GPS trackpoints max, increase page for any additional 5000
         GET /api/0.6/trackpoints?bbox=left,bottom,right,top&page=pageNumber
         """
-        data = requests.get(self.base_url + '/trackpoints?bbox={}' + ','.join(map(str, bbox)), auth=(NAME, PASS))
+        data = requests.get(self.base_url + '/trackpoints?bbox={}' + ','.join(map(str, bbox)))
         if data.ok:
             return self.__parse_gpx_info(data.text)
         raise Exception(data.text)
 
-    def upload_gpx(self, trace: str, name: str, description: str, tags: set,
+    def upload_gpx(self, trace: str, name: str, description: str, tags: set, auth,
                    public: bool = True, visibility: str = 'trackable') -> int:
         """
         uploads gpx trace
@@ -388,12 +380,12 @@ class OsmApi(a_osm_api.OsmApi):
         """
         content = {'description': description, 'tags': ','.join(tags), 'visibility': visibility}
         req_file = {'file': (name, trace)}
-        data = requests.post(self.base_url + '/gpx/create', auth=(NAME, PASS), files=req_file, data=content)
+        data = requests.post(self.base_url + '/gpx/create', auth=auth, files=req_file, data=content)
         if data.ok:
             return int(data.text)
         raise Exception(data.text)
 
-    def update_gpx(self, tid: int, trace: str, description: str, tags: list,
+    def update_gpx(self, tid: int, trace: str, description: str, tags: list, auth,
                    public: bool = True, visibility: str = 'trackable'):
         """
         updates gpx trace
@@ -401,18 +393,18 @@ class OsmApi(a_osm_api.OsmApi):
         """
         content = {'description': description, 'tags': ','.join(tags), 'public': public, 'visibility': visibility}
         req_file = {'file': ('test-trace.gpx', trace)}
-        data = requests.put(self.base_url + '/gpx/' + str(tid), auth=(NAME, PASS), files=req_file, data=content)
+        data = requests.put(self.base_url + '/gpx/' + str(tid), auth=auth, files=req_file, data=content)
         if data.ok:
             logger.debug('updated')
         else:
             logger.debug('not updated')
             raise Exception(data.text)
 
-    def delete_gpx(self, tid: int):
+    def delete_gpx(self, tid: int, auth):
         """
         DELETE /api/0.6/gpx/#id
         """
-        data = requests.delete(self.base_url + '/gpx/' + str(tid), auth=(NAME, PASS))
+        data = requests.delete(self.base_url + '/gpx/' + str(tid), auth=auth)
         if data.ok:
             logger.debug('deleted')
         else:
@@ -423,16 +415,16 @@ class OsmApi(a_osm_api.OsmApi):
         """
         GET /api/0.6/gpx/#id/data
         """
-        data = requests.get(self.base_url + '/gpx/{}/data'.format(tid), auth=(NAME, PASS))
+        data = requests.get(self.base_url + '/gpx/{}/data'.format(tid))
         if data.ok:
             return data.text
         raise Exception(data.text)
 
-    def get_own_gpx(self) -> list:
+    def get_own_gpx(self, auth) -> list:
         """
         GET /api/0.6/user/gpx_files
         """
-        data = requests.get(self.base_url + '/user/gpx_files', auth=(NAME, PASS))
+        data = requests.get(self.base_url + '/user/gpx_files', auth=auth)
         if data.ok:
             return self.__parse_gpx_info(data.text)
         raise Exception(data.text)
@@ -448,7 +440,7 @@ class OsmApi(a_osm_api.OsmApi):
             lst.append(attrib)
         return lst
 
-    ''' user '''
+    ################################################# USER ######################################################
 
     def get_user(self, uid: int) -> dict:
         """
@@ -456,7 +448,7 @@ class OsmApi(a_osm_api.OsmApi):
         :param uid: user id
         :returns: dictionary with user detail
         """
-        data = requests.get(self.base_url + '/user/' + str(uid), auth=(NAME, PASS))
+        data = requests.get(self.base_url + '/user/' + str(uid))
         if data.ok:
             return self.__parse_user(data.text)[0]
         raise Exception(data.text)
@@ -468,10 +460,20 @@ class OsmApi(a_osm_api.OsmApi):
         :param uids: uid in a list
         :returns: list of dictionary with user detail
         """
-        data = requests.get(self.base_url + '/users?users=' + ','.join(map(str, uids)), auth=(NAME, PASS))
+        data = requests.get(self.base_url + '/users?users=' + ','.join(map(str, uids)))
         if data.ok:
             logger.debug(data.text)
             return self.__parse_user(data.text)
+        raise Exception(data.text)
+
+    def get_current_user(self, auth) -> dict:
+        """
+        GET /api/0.6/user/details
+        :returns: dictionary with user detail
+        """
+        data = requests.get(self.base_url + '/user/details', auth=auth)
+        if data.ok:
+            return self.__parse_user(data.text)[0]
         raise Exception(data.text)
 
     def __parse_user(self, xml: str) -> list:
@@ -487,7 +489,7 @@ class OsmApi(a_osm_api.OsmApi):
                           'traces_count': int(user.find('traces').get('count'))})
         return users
 
-    def get_own_preferences(self) -> dict:
+    def get_own_preferences(self, auth) -> dict:
         """
         GET /api/0.6/user/preferences
 
@@ -495,7 +497,7 @@ class OsmApi(a_osm_api.OsmApi):
         """
         raise NotImplementedError
 
-    ''' notes '''
+    ################################################# NOTE ######################################################
 
     def __parse_notes(self, tree: ElemTree.Element):
         lst = []
@@ -524,7 +526,7 @@ class OsmApi(a_osm_api.OsmApi):
         """
         GET /api/0.6/notes?bbox=left,bottom,right,top
         """
-        data = requests.get(self.base_url + '/notes?bbox=' + ','.join(map(str, bbox)), auth=(NAME, PASS))
+        data = requests.get(self.base_url + '/notes?bbox=' + ','.join(map(str, bbox)))
         logger.debug(data.text)
         if data.ok:
             tree = ElemTree.fromstring(data.text)
@@ -537,7 +539,7 @@ class OsmApi(a_osm_api.OsmApi):
         """
         GET /api/0.6/notes/#id
         """
-        data = requests.get(self.base_url + '/notes/{}'.format(str(nid)), auth=(NAME, PASS))
+        data = requests.get(self.base_url + '/notes/{}'.format(str(nid)))
         logger.debug(data.text)
         if data.ok:
             tree = ElemTree.fromstring(data.text)
@@ -546,11 +548,12 @@ class OsmApi(a_osm_api.OsmApi):
             raise ValueError(data.text)
         raise Exception(data.text)
 
-    def create_note(self, text: str, lat: float, lon: float) -> Note:
+    def create_note(self, text: str, lat: float, lon: float, auth) -> Note:
         """
         POST /api/0.6/notes?lat=<lat>&lon=<lon>&text=<ANote>
         """
-        data = requests.post(self.base_url + '/notes', params={'lat': lat, 'lon': lon, 'text': text}, auth=(NAME, PASS))
+        # authorisation optional
+        data = requests.post(self.base_url + '/notes', params={'lat': lat, 'lon': lon, 'text': text}, auth=auth)
         logger.debug(data.text)
         if data.ok:
             tree = ElemTree.fromstring(data.text)
@@ -559,12 +562,12 @@ class OsmApi(a_osm_api.OsmApi):
             raise ValueError(data.text)
         raise Exception(data.text)
 
-    def comment_note(self, nid: int, text: str) -> Note:
+    def comment_note(self, nid: int, text: str, auth) -> Note:
         """
         POST /api/0.6/notes/#id/comment?text=<ANoteComment>
         """
         data = requests.post(self.base_url + '/notes/{}/comment'.format(str(nid)),
-                             params={'text': text}, auth=(NAME, PASS))
+                             params={'text': text}, auth=auth)
         logger.debug(data.text)
         if data.ok:
             tree = ElemTree.fromstring(data.text)
@@ -577,12 +580,12 @@ class OsmApi(a_osm_api.OsmApi):
             raise ConflictError(data.text)
         raise Exception(data.text)
 
-    def close_note(self, nid: int, text: str) -> Note:
+    def close_note(self, nid: int, text: str, auth) -> Note:
         """
         POST /api/0.6/notes/#id/close?text=<Comment>
         """
         data = requests.post(self.base_url + '/notes/{}/close'.format(str(nid)),
-                             params={'text': text}, auth=(NAME, PASS))
+                             params={'text': text}, auth=auth)
         logger.debug(data.text)
         if data.ok:
             tree = ElemTree.fromstring(data.text)
@@ -595,12 +598,12 @@ class OsmApi(a_osm_api.OsmApi):
             raise ConflictError(data.text)
         raise Exception(data.text)
 
-    def reopen_note(self, nid: int, text: str):
+    def reopen_note(self, nid: int, text: str, auth):
         """
         POST /api/0.6/notes/#id/reopen?text=<ANoteComment>
         """
         data = requests.post(self.base_url + '/notes/{}/close'.format(str(nid)),
-                             params={'text': text}, auth=(NAME, PASS))
+                             params={'text': text}, auth=auth)
         logger.debug(data.text)
         if data.ok:
             tree = ElemTree.fromstring(data.text)
@@ -653,7 +656,8 @@ class OsmApi(a_osm_api.OsmApi):
             tags[item.get('k')] = item.get('v')
         return tags
 
-    def __kv_serial(self, tags: dict, parent: ElemTree.Element) -> list:
+    def __kv_serial(self, tags: dict, parent: ElemTree.Element):
         lst = []
         for key, value in tags.items():
             ElemTree.SubElement(parent, 'tag', {'k': key, 'v': value})
+
